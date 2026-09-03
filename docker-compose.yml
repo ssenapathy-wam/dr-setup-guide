@@ -1,0 +1,141 @@
+version: '3.9'
+
+# ============================================================================
+# Docker Compose Configuration for DR Setup Guide
+# ============================================================================
+
+services:
+  # ========================================================================
+  # Main DR Setup Service
+  # ========================================================================
+  dr-setup:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dr-setup-guide
+    image: dr-setup-guide:latest
+    
+    # Environment Configuration
+    env_file:
+      - .env
+    environment:
+      - LOG_LEVEL=INFO
+      - LOG_FORMAT=json
+      - DRY_RUN=false
+    
+    # Volume Mounts
+    volumes:
+      # Application data
+      - ./logs:/app/logs
+      - ./backups:/app/backups
+      - ./data:/app/data
+      - ./config:/app/config
+      
+      # Kubernetes config (read-only)
+      - ~/.kube:/home/appuser/.kube:ro
+      
+      # AWS credentials (read-only)
+      - ~/.aws:/home/appuser/.aws:ro
+    
+    # Network Configuration
+    networks:
+      - dr-setup-network
+    
+    # Resource Limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    
+    # Restart Policy
+    restart: unless-stopped
+    
+    # Logging Configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Command Override (optional)
+    # command: python dr_orchestrator.py
+    
+    # Interactive Mode for Development
+    # stdin_open: true
+    # tty: true
+
+  # ========================================================================
+  # Optional: Monitoring Service (for centralized logging)
+  # ========================================================================
+  # Uncomment if you want centralized logging with ELK or similar
+  # 
+  # logstash:
+  #   image: docker.elastic.co/logstash/logstash:8.0.0
+  #   container_name: dr-setup-logstash
+  #   environment:
+  #     - "LS_JAVA_OPTS=-Xmx256m -Xms256m"
+  #   networks:
+  #     - dr-setup-network
+  #   volumes:
+  #     - ./config/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+  #     - ./logs:/var/log/dr-setup:ro
+  #   depends_on:
+  #     - elasticsearch
+
+# ============================================================================
+# Networks
+# ============================================================================
+networks:
+  dr-setup-network:
+    driver: bridge
+    name: dr-setup-network
+
+# ============================================================================
+# Volumes (Named volumes for persistence)
+# ============================================================================
+volumes:
+  # Define named volumes here if needed for cross-container data sharing
+  # dr-logs:
+  # dr-data:
+
+# ============================================================================
+# Usage Instructions
+# ============================================================================
+#
+# Start all services
+#   docker-compose up -d
+#
+# Start with logs
+#   docker-compose up
+#
+# Stop all services
+#   docker-compose down
+#
+# Stop and remove volumes
+#   docker-compose down -v
+#
+# View logs
+#   docker-compose logs -f dr-setup
+#
+# Execute command in container
+#   docker-compose exec dr-setup bash
+#
+# Run one-off command
+#   docker-compose run --rm dr-setup python dr_orchestrator.py
+#
+# Rebuild images
+#   docker-compose build --no-cache
+#
+# Scale services (if applicable)
+#   docker-compose up -d --scale dr-setup=3
+#
+# View service status
+#   docker-compose ps
+#
+# Inspect service
+#   docker-compose logs dr-setup
+#
